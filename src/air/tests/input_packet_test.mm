@@ -196,6 +196,14 @@ int main(int argc,char **argv){
  CFRelease(data);CFRelease(keyboard);
  assert(posted.size()==1&&posted[0].type==kCGEventKeyDown);
  assert(posted[0].timestamp>=earliest&&posted[0].timestamp<=latest);
+ for(CGKeyCode keycode:{(CGKeyCode)63,(CGKeyCode)179}){
+  auto extra=CGEventCreateKeyboardEvent(nullptr,keycode,true);assert(extra);
+  if(keycode==63){CGEventSetType(extra,kCGEventFlagsChanged);CGEventSetFlags(extra,kCGEventFlagMaskSecondaryFn);}
+  auto extraData=CGEventCreateData(kCFAllocatorDefault,extra);assert(extraData);
+  assert(air_host_input_event(43,CFDataGetBytePtr(extraData),CFDataGetLength(extraData))==0);
+  assert(posted.back().key==keycode);
+  CFRelease(extraData);CFRelease(extra);
+ }
  hostKeys.clear();posted.clear();
  auto sourceWheel=CGEventCreateScrollWheelEvent2(nullptr,kCGScrollEventUnitPixel,2,37,-19,0);assert(sourceWheel);
  CGEventSetIntegerValueField(sourceWheel,kCGScrollWheelEventIsContinuous,1);
@@ -637,6 +645,16 @@ int main(int argc,char **argv){
  }
  dispatch_sync(sendQueue,^{});
  assert(sent.size()==5&&forwarded==beforeBrightness+5);
+ for(CGKeyCode keycode:{(CGKeyCode)63,(CGKeyCode)179}){
+  auto event=CGEventCreateKeyboardEvent(nullptr,keycode,true);assert(event);
+  if(keycode==63){CGEventSetType(event,kCGEventFlagsChanged);CGEventSetFlags(event,kCGEventFlagMaskSecondaryFn);}
+  assert(!tapEvent(nullptr,CGEventGetType(event),event,nullptr));
+  dispatch_sync(sendQueue,^{});
+  auto packet=CFDataCreate(kCFAllocatorDefault,lastNativePacket.data(),lastNativePacket.size());assert(packet);
+  auto decoded=CGEventCreateFromData(kCFAllocatorDefault,packet);assert(decoded);
+  assert(CGEventGetIntegerValueField(decoded,kCGKeyboardEventKeycode)==keycode);
+  CFRelease(decoded);CFRelease(packet);CFRelease(event);
+ }
  localUI=false;sendNative=nullptr;auto failedShortcut=CGEventCreateKeyboardEvent(nullptr,49,true);assert(failedShortcut);
  CGEventSetFlags(failedShortcut,kCGEventFlagMaskCommand);
  assert(!tapEvent(nullptr,kCGEventKeyDown,failedShortcut,nullptr)&&!enabled);

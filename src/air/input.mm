@@ -1137,7 +1137,7 @@ extern "C" int air_host_input_event(int id,const uint8_t *bytes,size_t len) {
  auto key=CGEventGetIntegerValueField(event,kCGKeyboardEventKeycode);
  if(type==14){@try{NSEvent *native=[NSEvent eventWithCGEvent:event];if(native.subtype==8){int data=(int)native.data1;int media=(data>>16)&0xffff;if(((data>>8)&0xff)==11)hostMedia.erase(media);else if(((data>>8)&0xff)==10)hostMedia.insert(media);}}@catch(NSException*){}}
  if(type==kCGEventKeyDown||type==kCGEventKeyUp||type==kCGEventFlagsChanged){
-  if(key<0||key>127){CFRelease(event);air_set_error("Invalid native key code");return -1;}
+  if(key<0||key>0xffff){CFRelease(event);air_set_error("Invalid native key code");return -1;}
   if(type==kCGEventKeyDown)hostKeys.insert((CGKeyCode)key);
   if(type==kCGEventKeyUp)hostKeys.erase((CGKeyCode)key);
   if(type==kCGEventFlagsChanged){
