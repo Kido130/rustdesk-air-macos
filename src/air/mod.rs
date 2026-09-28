@@ -835,8 +835,12 @@ pub fn run() -> ResultType<()> {
         Config::set_option("enable-file-transfer".into(), "N".into());
         Config::set_option("enable-clipboard".into(), "N".into());
         std::thread::spawn(move || {
-            if let Err(error) = host_listen(port) {
-                status(&format!("Host stopped: {error}"));
+            loop {
+                if let Err(error) = host_listen(port) {
+                    eprintln!("Air Host listener stopped; retrying: {error}");
+                    status(&format!("Host reconnecting: {error}"));
+                }
+                std::thread::sleep(std::time::Duration::from_secs(2));
             }
         });
         status(&format!("RustDesk Air Host — built-in display — {shown_address}"));

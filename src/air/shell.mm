@@ -85,7 +85,8 @@ extern "C" int air_shell_set_startup(int enabled) {
             @"Label":agentLabel,
             @"ProgramArguments":arguments,
             @"RunAtLoad":@YES,
-            @"KeepAlive":@NO,
+            @"KeepAlive":@{@"SuccessfulExit":@NO},
+            @"ThrottleInterval":@15,
             @"ProcessType":@"Interactive"
         };
         if (![agent writeToFile:path atomically:YES] || chmod(path.fileSystemRepresentation,0600)!=0) {

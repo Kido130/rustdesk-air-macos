@@ -47,7 +47,8 @@ int main(void) {
             NSDictionary *attributes = [files attributesOfItemAtPath:path error:&error];
             check(item != nil && [item[@"Label"] isEqualToString:@"dev.rustdesk.air.client"], @"own label");
             check([item[@"ProgramArguments"] isEqualToArray:@[NSBundle.mainBundle.executablePath, @"--mode", @"adaptive", @"--reconnect"]], @"current executable and reconnect arguments");
-            check([item[@"RunAtLoad"] boolValue] && ![item[@"KeepAlive"] boolValue], @"runs at login without keep-alive");
+            check([item[@"RunAtLoad"] boolValue] && ![item[@"KeepAlive"][@"SuccessfulExit"] boolValue]
+                && [item[@"ThrottleInterval"] integerValue]==15, @"runs at login and retries unexpected exits");
             check([attributes[NSFilePosixPermissions] unsignedShortValue] == 0600, @"plist permissions 0600");
             check(air_shell_startup_enabled() == 1, @"created item reported enabled");
             check(air_shell_get_startup_options(&mode,&remote,&spaces,&raw,&match)==1

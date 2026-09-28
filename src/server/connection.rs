@@ -6919,6 +6919,22 @@ pub struct AuthedConn {
     pub printer: bool,
 }
 
+#[cfg(all(target_os = "macos", feature = "air-native"))]
+fn air_input_reconnect_can_replace_in(conns: &[AuthedConn], old_id: i32, new_id: i32) -> bool {
+    let Some(new) = conns.iter().find(|conn| conn.conn_id == new_id
+        && conn.conn_type == AuthConnType::Remote) else { return false; };
+    conns.iter().find(|conn| conn.conn_id == old_id).map_or(true, |old| {
+        old.conn_type == AuthConnType::Remote
+            && old.session_key.peer_id == new.session_key.peer_id
+    })
+}
+
+#[cfg(all(target_os = "macos", feature = "air-native"))]
+pub(crate) fn air_input_reconnect_can_replace(old_id: i32, new_id: i32) -> bool {
+    let conns = AUTHED_CONNS.lock().unwrap();
+    air_input_reconnect_can_replace_in(&conns, old_id, new_id)
+}
+
 mod raii {
     // ALIVE_CONNS: all connections, including unauthorized connections
     // AUTHED_CONNS: all authorized connections
@@ -8070,5 +8086,26 @@ mod test {
         // is all three fields, and either of those is someone else's screen to lock.
         assert!(!replaced_by(&conn(3, remote, key(8, "peer")), 2, &mine));
         assert!(!replaced_by(&conn(3, remote, key(7, "other")), 2, &mine));
+    }
+
+    #[cfg(all(target_os = "macos", feature = "air-native"))]
+    #[test]
+    fn reconnect_replaces_only_the_same_authenticated_air_or_a_gone_owner() {
+        let key = |peer: &str, session_id| SessionKey {
+            peer_id: peer.to_owned(), name: "Air".to_owned(), session_id,
+        };
+        let conn = |id, conn_type, session_key| AuthedConn {
+            conn_id: id, conn_type, session_key,
+            sender: mpsc::unbounded_channel().0, printer: false,
+        };
+        let remote = AuthConnType::Remote;
+        let active = vec![conn(1, remote, key("same-air", 1)),
+            conn(2, remote, key("same-air", 2)),
+            conn(3, remote, key("other-air", 3)),
+            conn(4, AuthConnType::Terminal, key("same-air", 4))];
+        assert!(air_input_reconnect_can_replace_in(&active, 1, 2));
+        assert!(!air_input_reconnect_can_replace_in(&active, 1, 3));
+        assert!(!air_input_reconnect_can_replace_in(&active, 1, 4));
+        assert!(air_input_reconnect_can_replace_in(&active, 99, 2));
     }
 }

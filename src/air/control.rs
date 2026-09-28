@@ -11,6 +11,7 @@ static REQUESTED: AtomicBool = AtomicBool::new(false);
 static RAW_REQUIRED: AtomicBool = AtomicBool::new(false);
 static CONNECTED: AtomicBool = AtomicBool::new(false);
 static RAW_SUPPORTED: AtomicBool = AtomicBool::new(false);
+static HOST_INPUT_OWNER: AtomicI32 = AtomicI32::new(0);
 static HOST_RAW_OWNER: AtomicI32 = AtomicI32::new(0);
 static NATIVE_CAPTURE_REQUESTED: AtomicBool = AtomicBool::new(false);
 static NATIVE_CAPTURE: Mutex<Option<(i32, CString)>> = Mutex::new(None);
@@ -187,6 +188,7 @@ fn host_failure(kind: u32, error: impl ToString, release: impl FnOnce()) -> AirC
 fn end_host_input(id: i32) {
     super::workspace::host_disconnected(id);
     let _ = HOST_RAW_OWNER.compare_exchange(id, 0, Ordering::SeqCst, Ordering::SeqCst);
+    let _ = HOST_INPUT_OWNER.compare_exchange(id, 0, Ordering::SeqCst, Ordering::SeqCst);
     unsafe { ffi::air_host_input_end(id); }
 }
 fn raw_request(payload: &[u8]) -> Result<bool, &'static str> {
@@ -196,6 +198,14 @@ fn raw_request(payload: &[u8]) -> Result<bool, &'static str> {
 }
 pub(crate) fn host_message(id: i32, message: AirControl) -> Option<AirControl> {
     if message.kind == 3 { trace_raw("rust_host_arrived", &message.payload, "ok"); }
+    if message.kind == 1 {
+        let previous = HOST_INPUT_OWNER.load(Ordering::SeqCst);
+        if previous != 0 && previous != id
+            && crate::server::air_input_reconnect_can_replace(previous, id) {
+            eprintln!("air_input_reconnect_takeover old={previous} new={id}");
+            end_host_input(previous);
+        }
+    }
     let requested_raw = if message.kind == 1 {
         match raw_request(&message.payload) {
             Ok(requested) => requested,
@@ -216,6 +226,7 @@ pub(crate) fn host_message(id: i32, message: AirControl) -> Option<AirControl> {
     };
     match result {
         Ok(()) if message.kind == 1 => {
+            HOST_INPUT_OWNER.store(id, Ordering::SeqCst);
             if requested_raw && (unsafe { ffi::air_host_raw_supported() } == 0
                 || unsafe { ffi::air_raw_wire_version() } != 2) {
                 end_host_input(id);

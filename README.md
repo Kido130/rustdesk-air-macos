@@ -12,14 +12,14 @@ An independent macOS fork of [RustDesk](https://github.com/rustdesk/rustdesk) fo
 
 ## Download and install
 
-The current [0.2.102 preview release](https://github.com/Kido130/rustdesk-air-macos/releases/tag/v0.2.102-preview) supports macOS 12.3 or later. Download **both** app archives from its **Assets** section. GitHub's automatic “Source code” archives are for developers; they are not installable apps.
+The current [0.2.104 preview release](https://github.com/Kido130/rustdesk-air-macos/releases/tag/v0.2.104-preview) supports macOS 12.3 or later. Download **both** app archives from its **Assets** section. GitHub's automatic “Source code” archives are for developers; they are not installable apps.
 
 | Computer | Download | App inside |
 | --- | --- | --- |
-| Apple Silicon MacBook Pro | [RustDesk-Air-Host-Apple-Silicon-0.2.102.zip](https://github.com/Kido130/rustdesk-air-macos/releases/download/v0.2.102-preview/RustDesk-Air-Host-Apple-Silicon-0.2.102.zip) | `RustDesk Air Host.app` |
-| Intel MacBook Air | [RustDesk-Air-Client-Intel-0.2.102.zip](https://github.com/Kido130/rustdesk-air-macos/releases/download/v0.2.102-preview/RustDesk-Air-Client-Intel-0.2.102.zip) | `RustDesk Air Client.app` |
+| Apple Silicon MacBook Pro | [RustDesk-Air-Host-Apple-Silicon-0.2.104.zip](https://github.com/Kido130/rustdesk-air-macos/releases/download/v0.2.104-preview/RustDesk-Air-Host-Apple-Silicon-0.2.104.zip) | `RustDesk Air Host.app` |
+| Intel MacBook Air | [RustDesk-Air-Client-Intel-0.2.104.zip](https://github.com/Kido130/rustdesk-air-macos/releases/download/v0.2.104-preview/RustDesk-Air-Client-Intel-0.2.104.zip) | `RustDesk Air Client.app` |
 
-On each Mac, double-click its downloaded ZIP, then move the app inside to **Applications**. Open the Host on the Pro and the Client on the Air. These builds are signed but **not Apple-notarized**. If macOS blocks an app, first try to open it, then go to **System Settings → Privacy & Security → Open Anyway** for that app. [Apple explains this exception](https://support.apple.com/en-us/102445); only use it for a download you trust. The release also provides [SHA256SUMS](https://github.com/Kido130/rustdesk-air-macos/releases/download/v0.2.102-preview/SHA256SUMS) if you want to compare your downloaded archive's SHA-256 using `shasum -a 256`.
+On each Mac, double-click its downloaded ZIP, then move the app inside to **Applications**. Open the Host on the Pro and the Client on the Air. These builds are signed but **not Apple-notarized**. If macOS blocks an app, first try to open it, then go to **System Settings → Privacy & Security → Open Anyway** for that app. [Apple explains this exception](https://support.apple.com/en-us/102445); only use it for a download you trust. The release also provides [SHA256SUMS](https://github.com/Kido130/rustdesk-air-macos/releases/download/v0.2.104-preview/SHA256SUMS) if you want to compare your downloaded archive's SHA-256 using `shasum -a 256`.
 
 ### Connect the two Macs
 
@@ -29,11 +29,13 @@ On each Mac, double-click its downloaded ZIP, then move the app inside to **Appl
 4. In the quality dialog, choose **Smooth + Sharp** for adaptive motion or **Exact Lossless** for lossless updates. **Remote Mode** captures Air keyboard and trackpad input. The three Remote Spaces and individual finger options are marked experimental and start off.
 5. The Client connects using direct LAN routes first, then configured Tailscale routes. During a session, move the pointer to the top edge for the Spaces menu and **Reload Spaces**. Press **Control–Option–Command–Escape** to leave Remote Mode.
 
+For automatic startup, add **RustDesk Air Host** to the Pro's macOS Login Items. On the Air, check **Open with these settings when I log in** in the quality dialog. The Client then starts with the selected mode at login and retries if it exits unexpectedly. The emergency exit remains a normal quit. If you move either app to a different folder, update its login item to point to the new location.
+
 If the Air shows no picture, check the Host's Screen Recording permission and reopen it. If the Air cannot connect, check that both Macs are awake and on the same LAN, or configure Tailscale on both before retrying. The pairing file is not included in the repository or release archives. To update, quit both apps and replace their app bundles with the corresponding new release archives; keep the pairing file private.
 
 ## Status
 
-Development preview for macOS 12.3 or later. The video and input baseline has been tested on an Apple Silicon Pro and an Intel Air. The 0.2.101 Reload Spaces code passed native menu and state tests; live recovery on the Air is still being verified. Version 0.2.102 adds Fn and extended-key packet coverage on both architectures. Test on your own machines before relying on window migration or restoration for important work.
+Development preview for macOS 12.3 or later. The video and input baseline has been tested on an Apple Silicon Pro and an Intel Air. The 0.2.101 Reload Spaces code passed native menu and state tests; live recovery on the Air is still being verified. Version 0.2.102 added Fn and extended-key packet coverage. Version 0.2.104 retries a stopped Host listener, restarts the Air Client after an unexpected exit, and lets the same Air reclaim input after a stale connection. Test on your own machines before relying on window migration or restoration for important work.
 
 ## Build from source
 
