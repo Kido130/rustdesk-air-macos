@@ -1,0 +1,875 @@
+{
+  "date": "2026-09-19",
+  "native_protocol_version": 3,
+  "air": "MacBookAir9,1, i5-1030NG7, 8 GB, macOS 15.7.7",
+  "scope": "Real encrypted Pro to Intel Air sessions. Functional matching tests with ordinary desktop content, not a repeatable motion benchmark.",
+  "installed_intel_binary_sha256": "9e43819fe8944b8a7836cd93e5197e44efdfef70a83cf6903de20c36eea58f58",
+  "cases": [
+    {
+      "mode": "exact",
+      "match_display": true,
+      "elapsed_s": 25.74219342,
+      "launch": "LaunchServices",
+      "exit_code": 0,
+      "metrics": {
+        "presented": 512,
+        "decoded": 0,
+        "hardware_sessions": 0,
+        "patches": 1045,
+        "submitted": 513,
+        "dropped": 1,
+        "drawable_misses": 0,
+        "pixel_identity_tests": 0,
+        "pixel_matched_presentations": 512,
+        "source_width": 2048,
+        "source_height": 1280,
+        "drawable_width": 2048,
+        "drawable_height": 1280,
+        "received_video_bytes": 20805174,
+        "uploaded_bgra_bytes": 50741248,
+        "decoded_cpu_pixel_bytes": 0
+      },
+      "cpu_scope": "client process only; first 5 seconds excluded; 100% equals one CPU core",
+      "mean_cpu_percent": 9.850747605665491,
+      "rss_median_mib": 66.099609375,
+      "rss_peak_mib": 66.3828125,
+      "functional_pass": true,
+      "case": "first",
+      "anydesk_mirror_active": true
+    },
+    {
+      "mode": "exact",
+      "match_display": true,
+      "elapsed_s": 70.386156481,
+      "launch": "LaunchServices",
+      "exit_code": 0,
+      "metrics": {
+        "presented": 1792,
+        "decoded": 0,
+        "hardware_sessions": 0,
+        "patches": 3236,
+        "submitted": 1799,
+        "dropped": 7,
+        "drawable_misses": 0,
+        "pixel_identity_tests": 0,
+        "pixel_matched_presentations": 1783,
+        "source_width": 2048,
+        "source_height": 1280,
+        "drawable_width": 2048,
+        "drawable_height": 1280,
+        "received_video_bytes": 70975014,
+        "uploaded_bgra_bytes": 169836544,
+        "decoded_cpu_pixel_bytes": 0
+      },
+      "cpu_scope": "client process only; first 5 seconds excluded; 100% equals one CPU core",
+      "mean_cpu_percent": 12.595439648117821,
+      "rss_median_mib": 103.63671875,
+      "rss_peak_mib": 104.640625,
+      "functional_pass": true,
+      "case": "dynamic",
+      "anydesk_mirror_active": false
+    },
+    {
+      "mode": "hevc",
+      "match_display": true,
+      "elapsed_s": 20.645915846,
+      "launch": "LaunchServices",
+      "exit_code": 0,
+      "metrics": {
+        "presented": 407,
+        "decoded": 407,
+        "hardware_sessions": 1,
+        "patches": 0,
+        "submitted": 407,
+        "dropped": 0,
+        "drawable_misses": 0,
+        "pixel_identity_tests": 0,
+        "pixel_matched_presentations": 407,
+        "source_width": 2048,
+        "source_height": 1280,
+        "drawable_width": 2048,
+        "drawable_height": 1280,
+        "received_video_bytes": 2229870,
+        "uploaded_bgra_bytes": 0,
+        "decoded_cpu_pixel_bytes": 0
+      },
+      "cpu_scope": "client process only; first 5 seconds excluded; 100% equals one CPU core",
+      "mean_cpu_percent": 8.439074637310757,
+      "rss_median_mib": 44.59375,
+      "rss_peak_mib": 44.703125,
+      "functional_pass": true,
+      "case": "hevc",
+      "anydesk_mirror_active": false
+    },
+    {
+      "mode": "h264",
+      "match_display": true,
+      "elapsed_s": 15.54173438,
+      "launch": "LaunchServices",
+      "exit_code": 0,
+      "metrics": {
+        "presented": 225,
+        "decoded": 225,
+        "hardware_sessions": 1,
+        "patches": 0,
+        "submitted": 226,
+        "dropped": 1,
+        "drawable_misses": 0,
+        "pixel_identity_tests": 0,
+        "pixel_matched_presentations": 225,
+        "source_width": 2560,
+        "source_height": 1600,
+        "drawable_width": 2560,
+        "drawable_height": 1600,
+        "received_video_bytes": 2048422,
+        "uploaded_bgra_bytes": 0,
+        "decoded_cpu_pixel_bytes": 0
+      },
+      "cpu_scope": "client process only; first 5 seconds excluded; 100% equals one CPU core",
+      "mean_cpu_percent": 9.516680550801691,
+      "rss_median_mib": 44.115234375,
+      "rss_peak_mib": 44.70703125,
+      "functional_pass": true,
+      "case": "h264",
+      "anydesk_mirror_active": false
+    }
+  ],
+  "pro_original": {
+    "1": {
+      "bounds": [
+        0,
+        0,
+        1147,
+        745
+      ],
+      "current": {
+        "logical": [
+          1147,
+          745
+        ],
+        "pixels": [
+          2294,
+          1490
+        ],
+        "mode_id": 24
+      }
+    },
+    "2": {
+      "bounds": [
+        -1920,
+        0,
+        1920,
+        1080
+      ],
+      "current": {
+        "logical": [
+          1920,
+          1080
+        ],
+        "pixels": [
+          1920,
+          1080
+        ],
+        "mode_id": 109
+      }
+    },
+    "3": {
+      "bounds": [
+        -3840,
+        0,
+        1920,
+        1080
+      ],
+      "current": {
+        "logical": [
+          1920,
+          1080
+        ],
+        "pixels": [
+          1920,
+          1080
+        ],
+        "mode_id": 62
+      }
+    }
+  },
+  "dynamic_pro_modes": {
+    "initial": {
+      "1": {
+        "bounds": [
+          0,
+          0,
+          1024,
+          640
+        ],
+        "current": {
+          "logical": [
+            1024,
+            640
+          ],
+          "pixels": [
+            2048,
+            1280
+          ],
+          "mode_id": 6
+        }
+      },
+      "2": {
+        "bounds": [
+          -1920,
+          0,
+          1920,
+          1080
+        ],
+        "current": {
+          "logical": [
+            1920,
+            1080
+          ],
+          "pixels": [
+            1920,
+            1080
+          ],
+          "mode_id": 109
+        }
+      },
+      "3": {
+        "bounds": [
+          -3840,
+          0,
+          1920,
+          1080
+        ],
+        "current": {
+          "logical": [
+            1920,
+            1080
+          ],
+          "pixels": [
+            1920,
+            1080
+          ],
+          "mode_id": 62
+        }
+      }
+    },
+    "native-scale": {
+      "1": {
+        "bounds": [
+          0,
+          0,
+          1280,
+          800
+        ],
+        "current": {
+          "logical": [
+            1280,
+            800
+          ],
+          "pixels": [
+            2560,
+            1600
+          ],
+          "mode_id": 30
+        }
+      },
+      "2": {
+        "bounds": [
+          -1920,
+          0,
+          1920,
+          1080
+        ],
+        "current": {
+          "logical": [
+            1920,
+            1080
+          ],
+          "pixels": [
+            1920,
+            1080
+          ],
+          "mode_id": 109
+        }
+      },
+      "3": {
+        "bounds": [
+          -3840,
+          0,
+          1920,
+          1080
+        ],
+        "current": {
+          "logical": [
+            1920,
+            1080
+          ],
+          "pixels": [
+            1920,
+            1080
+          ],
+          "mode_id": 62
+        }
+      }
+    },
+    "reverted": {
+      "1": {
+        "bounds": [
+          0,
+          0,
+          1024,
+          640
+        ],
+        "current": {
+          "logical": [
+            1024,
+            640
+          ],
+          "pixels": [
+            2048,
+            1280
+          ],
+          "mode_id": 6
+        }
+      },
+      "2": {
+        "bounds": [
+          -1920,
+          0,
+          1920,
+          1080
+        ],
+        "current": {
+          "logical": [
+            1920,
+            1080
+          ],
+          "pixels": [
+            1920,
+            1080
+          ],
+          "mode_id": 109
+        }
+      },
+      "3": {
+        "bounds": [
+          -3840,
+          0,
+          1920,
+          1080
+        ],
+        "current": {
+          "logical": [
+            1920,
+            1080
+          ],
+          "pixels": [
+            1920,
+            1080
+          ],
+          "mode_id": 62
+        }
+      }
+    }
+  },
+  "restoration": {
+    "display-match-live-after.jsonl": {
+      "all_display_modes_and_origins_restored": true,
+      "after": {
+        "1": {
+          "bounds": [
+            0,
+            0,
+            1147,
+            745
+          ],
+          "current": {
+            "logical": [
+              1147,
+              745
+            ],
+            "pixels": [
+              2294,
+              1490
+            ],
+            "mode_id": 24
+          }
+        },
+        "2": {
+          "bounds": [
+            -1920,
+            0,
+            1920,
+            1080
+          ],
+          "current": {
+            "logical": [
+              1920,
+              1080
+            ],
+            "pixels": [
+              1920,
+              1080
+            ],
+            "mode_id": 109
+          }
+        },
+        "3": {
+          "bounds": [
+            -3840,
+            0,
+            1920,
+            1080
+          ],
+          "current": {
+            "logical": [
+              1920,
+              1080
+            ],
+            "pixels": [
+              1920,
+              1080
+            ],
+            "mode_id": 62
+          }
+        }
+      }
+    },
+    "display-dynamic-after.jsonl": {
+      "all_display_modes_and_origins_restored": true,
+      "after": {
+        "1": {
+          "bounds": [
+            0,
+            0,
+            1147,
+            745
+          ],
+          "current": {
+            "logical": [
+              1147,
+              745
+            ],
+            "pixels": [
+              2294,
+              1490
+            ],
+            "mode_id": 24
+          }
+        },
+        "2": {
+          "bounds": [
+            -1920,
+            0,
+            1920,
+            1080
+          ],
+          "current": {
+            "logical": [
+              1920,
+              1080
+            ],
+            "pixels": [
+              1920,
+              1080
+            ],
+            "mode_id": 109
+          }
+        },
+        "3": {
+          "bounds": [
+            -3840,
+            0,
+            1920,
+            1080
+          ],
+          "current": {
+            "logical": [
+              1920,
+              1080
+            ],
+            "pixels": [
+              1920,
+              1080
+            ],
+            "mode_id": 62
+          }
+        }
+      }
+    },
+    "display-hevc-after.jsonl": {
+      "all_display_modes_and_origins_restored": true,
+      "after": {
+        "1": {
+          "bounds": [
+            0,
+            0,
+            1147,
+            745
+          ],
+          "current": {
+            "logical": [
+              1147,
+              745
+            ],
+            "pixels": [
+              2294,
+              1490
+            ],
+            "mode_id": 24
+          }
+        },
+        "2": {
+          "bounds": [
+            -1920,
+            0,
+            1920,
+            1080
+          ],
+          "current": {
+            "logical": [
+              1920,
+              1080
+            ],
+            "pixels": [
+              1920,
+              1080
+            ],
+            "mode_id": 109
+          }
+        },
+        "3": {
+          "bounds": [
+            -3840,
+            0,
+            1920,
+            1080
+          ],
+          "current": {
+            "logical": [
+              1920,
+              1080
+            ],
+            "pixels": [
+              1920,
+              1080
+            ],
+            "mode_id": 62
+          }
+        }
+      }
+    },
+    "display-matching-final-pro.jsonl": {
+      "all_display_modes_and_origins_restored": true,
+      "after": {
+        "1": {
+          "bounds": [
+            0,
+            0,
+            1147,
+            745
+          ],
+          "current": {
+            "logical": [
+              1147,
+              745
+            ],
+            "pixels": [
+              2294,
+              1490
+            ],
+            "mode_id": 24
+          }
+        },
+        "2": {
+          "bounds": [
+            -1920,
+            0,
+            1920,
+            1080
+          ],
+          "current": {
+            "logical": [
+              1920,
+              1080
+            ],
+            "pixels": [
+              1920,
+              1080
+            ],
+            "mode_id": 109
+          }
+        },
+        "3": {
+          "bounds": [
+            -3840,
+            0,
+            1920,
+            1080
+          ],
+          "current": {
+            "logical": [
+              1920,
+              1080
+            ],
+            "pixels": [
+              1920,
+              1080
+            ],
+            "mode_id": 62
+          }
+        }
+      }
+    }
+  },
+  "forced_termination_mode_helper": {
+    "before": {
+      "1": {
+        "bounds": [
+          0,
+          0,
+          1147,
+          745
+        ],
+        "current": {
+          "logical": [
+            1147,
+            745
+          ],
+          "pixels": [
+            2294,
+            1490
+          ],
+          "mode_id": 24
+        }
+      },
+      "2": {
+        "bounds": [
+          -1920,
+          0,
+          1920,
+          1080
+        ],
+        "current": {
+          "logical": [
+            1920,
+            1080
+          ],
+          "pixels": [
+            1920,
+            1080
+          ],
+          "mode_id": 109
+        }
+      },
+      "3": {
+        "bounds": [
+          -3840,
+          0,
+          1920,
+          1080
+        ],
+        "current": {
+          "logical": [
+            1920,
+            1080
+          ],
+          "pixels": [
+            1920,
+            1080
+          ],
+          "mode_id": 62
+        }
+      }
+    },
+    "during": {
+      "1": {
+        "bounds": [
+          0,
+          0,
+          1024,
+          640
+        ],
+        "current": {
+          "logical": [
+            1024,
+            640
+          ],
+          "pixels": [
+            2048,
+            1280
+          ],
+          "mode_id": 6
+        }
+      },
+      "2": {
+        "bounds": [
+          -1920,
+          0,
+          1920,
+          1080
+        ],
+        "current": {
+          "logical": [
+            1920,
+            1080
+          ],
+          "pixels": [
+            1920,
+            1080
+          ],
+          "mode_id": 109
+        }
+      },
+      "3": {
+        "bounds": [
+          -3840,
+          0,
+          1920,
+          1080
+        ],
+        "current": {
+          "logical": [
+            1920,
+            1080
+          ],
+          "pixels": [
+            1920,
+            1080
+          ],
+          "mode_id": 62
+        }
+      }
+    },
+    "after": {
+      "1": {
+        "bounds": [
+          0,
+          0,
+          1147,
+          745
+        ],
+        "current": {
+          "logical": [
+            1147,
+            745
+          ],
+          "pixels": [
+            2294,
+            1490
+          ],
+          "mode_id": 24
+        }
+      },
+      "2": {
+        "bounds": [
+          -1920,
+          0,
+          1920,
+          1080
+        ],
+        "current": {
+          "logical": [
+            1920,
+            1080
+          ],
+          "pixels": [
+            1920,
+            1080
+          ],
+          "mode_id": 109
+        }
+      },
+      "3": {
+        "bounds": [
+          -3840,
+          0,
+          1920,
+          1080
+        ],
+        "current": {
+          "logical": [
+            1920,
+            1080
+          ],
+          "pixels": [
+            1920,
+            1080
+          ],
+          "mode_id": 62
+        }
+      }
+    },
+    "restored": true
+  },
+  "native_gpu_pixel_tests": {
+    "pro": {
+      "presented": 0,
+      "decoded": 10,
+      "hardware_sessions": 2,
+      "patches": 4,
+      "submitted": 0,
+      "dropped": 0,
+      "drawable_misses": 0,
+      "pixel_identity_tests": 1,
+      "pixel_matched_presentations": 0,
+      "source_width": 0,
+      "source_height": 0,
+      "drawable_width": 0,
+      "drawable_height": 0,
+      "received_video_bytes": 0,
+      "uploaded_bgra_bytes": 50076,
+      "decoded_cpu_pixel_bytes": 0
+    },
+    "intel_air": {
+      "presented": 0,
+      "decoded": 0,
+      "hardware_sessions": 0,
+      "patches": 4,
+      "submitted": 0,
+      "dropped": 0,
+      "drawable_misses": 0,
+      "pixel_identity_tests": 1,
+      "pixel_matched_presentations": 0,
+      "source_width": 0,
+      "source_height": 0,
+      "drawable_width": 0,
+      "drawable_height": 0,
+      "received_video_bytes": 0,
+      "uploaded_bgra_bytes": 50076,
+      "decoded_cpu_pixel_bytes": 0
+    }
+  },
+  "authentication": {
+    "real_socket_tests_passed": [
+      "wrong-key",
+      "wrong-identity",
+      "wrong-password",
+      "plaintext-downgrade-rejected"
+    ]
+  },
+  "release_builds": [
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin"
+  ],
+  "feature_off_library_build": "passed",
+  "limitations": [
+    "macOS panel scaling and color management remain; video codecs remain lossy",
+    "Exact motion is still limited by the measured Wi-Fi link",
+    "Only exact built-in modes supported by both displays can match",
+    "Monitor origins restore; window positions and Spaces are outside this feature",
+    "Nine presentations during dynamic mode transitions had differing source/drawable dimensions; rendering remained one-to-one with temporary clipping/letterboxing",
+    "CPU measurements cover only the client process, excluding WindowServer, decoder helpers and total power"
+  ],
+  "air_final": {
+    "logical": [
+      1024,
+      640
+    ],
+    "pixels": [
+      2048,
+      1280
+    ],
+    "helper_restoration_verified": true
+  }
+}
