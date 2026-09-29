@@ -280,6 +280,58 @@ NSString *displayUUID(CGDirectDisplayID id) {
     NSString *result=CFBridgingRelease(CFUUIDCreateString(kCFAllocatorDefault,uuid));
     CFRelease(uuid); return result;
 }
+struct RemotePhysicalDisplay { CGRect bounds={}; int slot=-1; std::string uuid; };
+// Native slots retain macOS's stable built-in Space as slot 0. The chooser is
+// intentionally exposed in reverse order below: far external, near external,
+// built-in. This keeps recovery tied to native Space identity while presenting
+// the three physical desktops from farthest to nearest as Spaces 1 through 3.
+bool remotePhysicalDisplays(std::vector<RemotePhysicalDisplay> &result) {
+    result.clear();
+    CGDirectDisplayID ids[32],builtin=0;uint32_t count=0;
+    if(CGGetOnlineDisplayList(32,ids,&count)!=kCGErrorSuccess)return false;
+    std::vector<CGDirectDisplayID> external;
+    for(uint32_t i=0;i<count;i++) {
+        if(CGDisplayIsBuiltin(ids[i])) {
+            if(builtin)return false;
+            builtin=ids[i];
+        } else external.push_back(ids[i]);
+    }
+    if(!builtin || external.size()!=2)return false;
+    CGRect built=CGDisplayBounds(builtin);
+    auto distance=[&](CGDirectDisplayID id) {
+        CGRect frame=CGDisplayBounds(id);
+        double dx=CGRectGetMidX(frame)-CGRectGetMidX(built);
+        double dy=CGRectGetMidY(frame)-CGRectGetMidY(built);
+        return dx*dx+dy*dy;
+    };
+    std::sort(external.begin(),external.end(),[&](CGDirectDisplayID left,CGDirectDisplayID right) {
+        double a=distance(left),b=distance(right);
+        if(a!=b)return a<b;
+        NSString *l=displayUUID(left),*r=displayUUID(right);
+        return [(l ?: @"") compare:(r ?: @"")] == NSOrderedAscending;
+    });
+    NSString *builtUUID=displayUUID(builtin);
+    if(!builtUUID)return false;
+    result.push_back({built,0,builtUUID.UTF8String});
+    for(int i=0;i<2;i++) {
+        NSString *uuid=displayUUID(external[i]);
+        if(!uuid)return false;
+        result.push_back({CGDisplayBounds(external[i]),i+1,uuid.UTF8String});
+    }
+    return true;
+}
+int nativeSlotForDisplayUUID(const std::string &uuid) {
+    std::vector<RemotePhysicalDisplay> displays;
+    if(!remotePhysicalDisplays(displays))return -1;
+    for(const auto &display:displays)if(display.uuid==uuid)return display.slot;
+    return -1;
+}
+int logicalSlotForNativeIndex(int index,bool reversed) {
+    return index<0 || index>2 ? 0 : reversed ? 3-index : index+1;
+}
+int nativeIndexForLogicalSlot(int slot,bool reversed) {
+    return slot<1 || slot>3 ? -1 : reversed ? 3-slot : slot-1;
+}
 NSDictionary *builtInManaged(NSArray *displays) {
 #ifdef AIR_SPACES_JOURNAL_TEST
     if(recoveryHooks && recoveryHooks->inventory) {
@@ -1035,6 +1087,84 @@ bool signedSystemFinderExecutable(pid_t pid) {
     if(requirement)CFRelease(requirement);
     if(code)CFRelease(code);
     return signedOkay;
+}
+struct TextKitAgentSurfaceEvidence {
+    bool exactBundle=false,exactOwner=false,blankTitle=false,layerZero=false;
+    bool alphaOne=false,onscreenKeyAbsent=false,zeroFrame=false,exactTags=false;
+    bool parentRoot=false,zeroMembership=false,noAXWindow=false;
+    bool stableCG=false,stableProcess=false,signedSystemProcess=false;
+};
+bool textKitAgentSurfaceDecision(const TextKitAgentSurfaceEvidence &e) {
+    return e.exactBundle && e.exactOwner && e.blankTitle && e.layerZero
+        && e.alphaOne && e.onscreenKeyAbsent && e.zeroFrame && e.exactTags
+        && e.parentRoot && e.zeroMembership && e.noAXWindow
+        && e.stableCG && e.stableProcess && e.signedSystemProcess;
+}
+bool signedSystemTextKitAgentExecutable(pid_t pid) {
+    if(pid<=0)return false;
+    char observed[PROC_PIDPATHINFO_MAXSIZE]={};
+    if(proc_pidpath(pid,observed,sizeof(observed))<=0)return false;
+    static const char *expected=
+        "/System/Library/PrivateFrameworks/UIFoundation.framework/Versions/A/XPCServices/"
+        "nsattributedstringagent.xpc/Contents/MacOS/nsattributedstringagent";
+    char actualPath[PATH_MAX]={},expectedPath[PATH_MAX]={};
+    if(!realpath(observed,actualPath) || !realpath(expected,expectedPath)
+        || strcmp(actualPath,expectedPath)!=0)return false;
+    CFURLRef url=CFURLCreateFromFileSystemRepresentation(kCFAllocatorDefault,
+        (const UInt8 *)actualPath,strlen(actualPath),false);
+    if(!url)return false;
+    SecStaticCodeRef code=nullptr;SecRequirementRef requirement=nullptr;
+    OSStatus created=SecStaticCodeCreateWithPath(url,kSecCSDefaultFlags,&code);
+    CFRelease(url);
+    OSStatus required=SecRequirementCreateWithString(CFSTR(
+        "anchor apple and identifier \"com.apple.textkit.nsattributedstringagent\""),
+        kSecCSDefaultFlags,&requirement);
+    bool signedOkay=created==errSecSuccess && required==errSecSuccess
+        && SecStaticCodeCheckValidity(code,kSecCSStrictValidate,requirement)==errSecSuccess;
+    if(requirement)CFRelease(requirement);
+    if(code)CFRelease(code);
+    return signedOkay;
+}
+// UIFoundation's sealed attributed-string helper exposes a stable, root-level
+// zero-size compositor sentinel with no AX endpoint and no Space membership.
+// It cannot be moved or restored. Omit only this exact signed system surface.
+bool verifiedTextKitAgentSurface(NSDictionary *info,uint32_t wid,pid_t pid,int cid) {
+    if(!info || !wid || pid<=0 || !cid || !api().windowSpaces
+        || [number(info[(id)kCGWindowNumber]) unsignedIntValue]!=wid
+        || [number(info[(id)kCGWindowOwnerPID]) intValue]!=pid)return false;
+    NSRunningApplication *app=[NSRunningApplication runningApplicationWithProcessIdentifier:pid];
+    ProcessBirth birth=processBirth(pid);CGRect frame={};uint64_t tags=0;bool parentKnown=false;
+    NSString *title=info[(id)kCGWindowName];NSNumber *alpha=number(info[(id)kCGWindowAlpha]);
+    uint32_t parent=exactWindowParent(cid,wid,&parentKnown);
+    TextKitAgentSurfaceEvidence e;
+    e.exactBundle=app && !app.terminated
+        && [app.bundleIdentifier isEqual:@"com.apple.textkit.nsattributedstringagent"];
+    e.exactOwner=[info[(id)kCGWindowOwnerName] isEqual:@"nsattributedstringagent"];
+    e.blankTitle=[title isKindOfClass:NSString.class] && title.length==0;
+    e.layerZero=[number(info[(id)kCGWindowLayer]) intValue]==0;
+    e.alphaOne=alpha && alpha.doubleValue==1;
+    e.onscreenKeyAbsent=info[(id)kCGWindowIsOnscreen]==nil;
+    e.zeroFrame=CGRectMakeWithDictionaryRepresentation(
+        (__bridge CFDictionaryRef)dictionary(info[(id)kCGWindowBounds]),&frame)
+        && CGRectEqualToRect(frame,CGRectZero);
+    e.exactTags=exactWindowTags(cid,wid,&tags) && tags==0x200100000000ULL;
+    e.parentRoot=parentKnown && parent==0;
+    if(!(e.exactBundle && e.exactOwner && e.blankTitle && e.layerZero
+        && e.alphaOne && e.onscreenKeyAbsent && e.zeroFrame && e.exactTags
+        && e.parentRoot && birth.valid()))return false;
+    for(int sample=0;sample<2;sample++) {
+        NSArray *members=CFBridgingRelease(api().windowSpaces(cid,0x7,
+            (__bridge CFArrayRef)@[@(wid)]));
+        if(!members || members.count)return false;
+        if(sample==0)usleep(25000);
+    }
+    e.zeroMembership=true;
+    AXUIElementRef ax=findAXWindow(pid,wid);
+    e.noAXWindow=ax==nullptr;if(ax)CFRelease(ax);
+    e.stableCG=stableAllCGSurface(info,wid,pid,frame);
+    e.stableProcess=birth==processBirth(pid);
+    e.signedSystemProcess=signedSystemTextKitAgentExecutable(pid);
+    return textKitAgentSurfaceDecision(e);
 }
 struct CUAOverlayEvidence {
     bool signedProcess=false,stableBirth=false,exactCG=false,completeAX=false;
@@ -8001,6 +8131,42 @@ bool absentFromCompleteWindowInventory(NSArray *inventory,NSArray *members,uint3
         if([number(info[(id)kCGWindowNumber]) unsignedIntValue]==wid)return false;
     return true;
 }
+NSArray *stableWindowMembership(uint32_t wid,int cid) {
+    if(!wid || !cid || !api().windowSpaces)return nil;
+    NSArray *members=nil;
+    for(int sample=0;sample<3;sample++) {
+        members=CFBridgingRelease(api().windowSpaces(cid,0x7,
+            (__bridge CFArrayRef)@[@(wid)]));
+        if(members)return members;
+        if(sample<2)usleep(25000);
+    }
+    return nil;
+}
+bool departedSnapshotSample(NSArray *cg,NSArray *members,uint32_t wid) {
+    if(!cg || !members || !wid || members.count)return false;
+    for(NSDictionary *info in cg)
+        if([number(info[(id)kCGWindowNumber]) unsignedIntValue]==wid)return false;
+    return true;
+}
+// completeWindowInventory deliberately includes inactive Spaces. A surface can
+// retire between that snapshot and the per-window membership read. It is safe
+// to omit only when two fresh WindowServer samples agree that both the surface
+// and every Space membership are gone.
+bool departedWindowAfterSnapshot(uint32_t wid,int cid) {
+    if(!wid || !cid || !api().windowSpaces)return false;
+    for(int sample=0;sample<2;sample++) {
+        NSArray *cg=CFBridgingRelease(CGWindowListCopyWindowInfo(
+            kCGWindowListOptionAll,kCGNullWindowID));
+        NSArray *members=stableWindowMembership(wid,cid);
+        if(!departedSnapshotSample(cg,members,wid))return false;
+        NSArray *details=CFBridgingRelease(CGWindowListCopyWindowInfo(
+            kCGWindowListOptionIncludingWindow,wid));
+        for(NSDictionary *info in details)
+            if([number(info[(id)kCGWindowNumber]) unsignedIntValue]==wid)return false;
+        if(sample==0)usleep(50000);
+    }
+    return true;
+}
 // A window can disappear between a window snapshot and identity inspection.
 // Omit its exact ID only when two complete inventories and SkyLight membership
 // reads agree that the ID is gone.
@@ -8291,6 +8457,7 @@ bool captureWholeFrameSnapshot(const air::whole_space::Topology &topology,int ci
         if(systemChrome(app.bundleIdentifier)
             || verifiedCursorUIOverlay(info,wid,pid,axCache)
             || verifiedCUAOverlay(info,wid,pid,cid)
+            || verifiedTextKitAgentSurface(info,wid,pid,cid)
             || verifiedDetachedMenuStripSurface(info,wid,pid,cid,&menuStrips))continue;
         // Chrome's compositor windows change identity and Space without AX notice.
         // The user chose to exclude Chrome from exact per-window restoration.
@@ -8621,6 +8788,7 @@ bool captureSelectedFullScreenInventory(int cid,NSArray **managedOut,NSArray **w
         if(systemChrome(app.bundleIdentifier)
             || verifiedCursorUIOverlay(info,wid,pid,cursorAX)
             || verifiedCUAOverlay(info,wid,pid,cid)
+            || verifiedTextKitAgentSurface(info,wid,pid,cid)
             || verifiedDetachedMenuStripSurface(info,wid,pid,cid,&firstMenuStrips))continue;
         NSArray *members=CFBridgingRelease(api().windowSpaces(cid,0x7,(__bridge CFArrayRef)@[@(wid)]));
         if(!members) {
@@ -8679,6 +8847,7 @@ bool captureSelectedFullScreenInventory(int cid,NSArray **managedOut,NSArray **w
         if(systemChrome(app.bundleIdentifier)
             || verifiedCursorUIOverlay(info,wid,pid,cursorAX)
             || verifiedCUAOverlay(info,wid,pid,cid)
+            || verifiedTextKitAgentSurface(info,wid,pid,cid)
             || verifiedDetachedMenuStripSurface(info,wid,pid,cid,&secondMenuStrips))continue;
         NSArray *members=CFBridgingRelease(api().windowSpaces(cid,0x7,(__bridge CFArrayRef)@[@(wid)]));
         if(!members) {
@@ -8938,10 +9107,11 @@ void routeRuntimeLaunches(int cid) {
         if(!advanceRuntimeLaunch(runtimeLaunchWindows.back(),cid))return;
     }
 }
-bool reusedRouteCandidate(NSDictionary *cg,int cid,SavedWindow &out) {
+bool reusedRouteCandidate(NSDictionary *cg,int cid,SavedWindow &out,
+                          bool includeBaseline=false,bool includeBuiltin=false) {
     uint32_t wid=[number(cg[(id)kCGWindowNumber]) unsignedIntValue];
     pid_t pid=[number(cg[(id)kCGWindowOwnerPID]) intValue];
-    if(!wid || pid<=0 || pid==getpid() || reusedRouteBaseline.count(wid)
+    if(!wid || pid<=0 || pid==getpid() || (!includeBaseline && reusedRouteBaseline.count(wid))
         || [number(cg[(id)kCGWindowLayer]) intValue]!=0
         || [number(cg[(id)kCGWindowAlpha]) doubleValue]!=1
         || std::any_of(saved.begin(),saved.end(),[&](const SavedWindow &w){return w.id==wid;}))return false;
@@ -8953,13 +9123,12 @@ bool reusedRouteCandidate(NSDictionary *cg,int cid,SavedWindow &out) {
     uint64_t source=oneWindowSpace(wid,cid);
     if(!source || api().spaceType(cid,source)!=0 || !exactSingletonMembership(cid,wid,source))return false;
     NSString *owner=api().windowDisplay ? CFBridgingRelease(api().windowDisplay(cid,wid)) : nil;
-    if(!owner.length || [owner isEqualToString:[NSString stringWithUTF8String:builtinUUID.c_str()]])return false;
-    int externalSlot=0;bool matched=false;
-    for(const auto &selection:initialSelections)if(selection.displayUUID!=builtinUUID) {
-        ++externalSlot;
-        if(selection.displayUUID==owner.UTF8String){matched=true;break;}
-    }
-    if(!matched || externalSlot<1 || externalSlot>2 || !spaceOnDisplay(managed(),source,owner.UTF8String)
+    if(!owner.length)return false;
+    int sourceSlot=nativeSlotForDisplayUUID(owner.UTF8String);
+    if(sourceSlot<0 || sourceSlot>2 || (!includeBuiltin && sourceSlot==0)
+        || (includeBuiltin && sourceSlot==0
+            && std::find(std::begin(slots),std::end(slots),source)!=std::end(slots))
+        || !spaceOnDisplay(managed(),source,owner.UTF8String)
         || !windowOnDisplay(wid,cid,owner.UTF8String))return false;
     bool found=false;CGRect sourceBounds=boundsForDisplayUUID(owner.UTF8String,&found);
     if(!found)return false;
@@ -8983,7 +9152,7 @@ bool reusedRouteCandidate(NSDictionary *cg,int cid,SavedWindow &out) {
     NSString *title=cg[(id)kCGWindowName];
     if(![title isKindOfClass:NSString.class])title=@"";
     out={wid,pid,bundle.UTF8String,title.UTF8String,axFrame,sourceBounds,launch,
-        source,0,owner.UTF8String,true};
+        source,sourceSlot,owner.UTF8String,true};
     out.birthSeconds=birth.seconds;out.birthMicroseconds=birth.microseconds;
     out.memberships={source};
     out.minimizedKnown=true;out.minimized=minimized;
@@ -9409,20 +9578,10 @@ extern "C" int air_spaces_prepare() {
     initialSpace=startingType==0 ? startingSpace : 0;
     initialFullScreenSpace=startingType==4 ? startingSpace : 0;
     initialFullScreenIndex=-1;finalSelectionPending=false;
-    CGDirectDisplayID ids[32];uint32_t count=0;
-    if(CGGetOnlineDisplayList(32,ids,&count)!=kCGErrorSuccess)return error("Cannot read display layout for Spaces");
-    struct Display { CGRect bounds; int slot; std::string uuid; };std::vector<Display> displays;
-    int external=1;
-    for(uint32_t i=0;i<count;i++)if(CGDisplayIsBuiltin(ids[i])) {
-        NSString *uuid=displayUUID(ids[i]);if(!uuid)return error("Built-in display identity unavailable");
-        builtinUUID=uuid.UTF8String;
-        displays.push_back({CGDisplayBounds(ids[i]),0,builtinUUID});
-    }
-    for(uint32_t i=0;i<count;i++)if(!CGDisplayIsBuiltin(ids[i]) && external<=2) {
-        NSString *uuid=displayUUID(ids[i]);if(!uuid)return error("External display identity unavailable");
-        displays.push_back({CGDisplayBounds(ids[i]),external++,uuid.UTF8String});
-    }
-    if(external!=3)return error("Spaces migration requires exactly two external displays");
+    std::vector<RemotePhysicalDisplay> displays;
+    if(!remotePhysicalDisplays(displays))
+        return error("Spaces migration requires one built-in and exactly two identifiable external displays");
+    builtinUUID=displays[0].uuid;
     NSArray *managedBefore=managed();
     bool deferOrdinaryInventory=false,hasSelectedFullScreen=false;
     for(NSDictionary *display in managedBefore)for(NSDictionary *space in array(display[@"Spaces"])) {
@@ -9482,6 +9641,7 @@ extern "C" int air_spaces_prepare() {
             if(systemChrome(app.bundleIdentifier)
                 || verifiedCursorUIOverlay(info,wid,pid,dormantAX)
                 || verifiedCUAOverlay(info,wid,pid,cid)
+                || verifiedTextKitAgentSurface(info,wid,pid,cid)
                 || verifiedDetachedMenuStripSurface(info,wid,pid,cid,&initialMenuStrips))continue;
             NSArray *members=CFBridgingRelease(a.windowSpaces(cid,0x7,(__bridge CFArrayRef)@[@(wid)]));
             uint64_t sid=members.count==1 ? [number(members[0]) unsignedLongLongValue] : 0;
@@ -9541,8 +9701,9 @@ extern "C" int air_spaces_prepare() {
         if(systemChrome(app.bundleIdentifier)
             || verifiedCursorUIOverlay(info,wid,pid,dormantAX)
             || verifiedCUAOverlay(info,wid,pid,cid)
+            || verifiedTextKitAgentSurface(info,wid,pid,cid)
             || verifiedDetachedMenuStripSurface(info,wid,pid,cid,&ordinaryMenuStrips))continue;
-        NSArray *members=CFBridgingRelease(a.windowSpaces(cid,0x7,(__bridge CFArrayRef)@[@(wid)]));
+        NSArray *members=stableWindowMembership(wid,cid);
         if(!members)return error("A desktop window's Space membership is unavailable; Remote Spaces cannot omit it");
         if(!members.count){
             ProcessBirth sourceBirth=processBirth(pid);
@@ -9552,6 +9713,7 @@ extern "C" int air_spaces_prepare() {
                 NSLog(@"RustDesk Air: leaving unmapped AX-inaccessible WID %u untouched",wid);
                 deferredInvisibleWindows.push_back(std::move(deferred));continue;
             }
+            if(departedWindowAfterSnapshot(wid,cid))continue;
             return error("A desktop window's Space membership is unavailable; Remote Spaces cannot omit it");
         }
         CGRect frame={};
@@ -9840,6 +10002,7 @@ extern "C" int air_spaces_prepare() {
                 if(systemChrome(app.bundleIdentifier)
                     || verifiedCursorUIOverlay(info,wid,pid,phaseBCursorAX)
                     || verifiedCUAOverlay(info,wid,pid,cid)
+                    || verifiedTextKitAgentSurface(info,wid,pid,cid)
                     || verifiedDetachedMenuStripSurface(info,wid,pid,cid,&signatureMenuStrips))continue;
                 ProcessBirth birth=processBirth(pid);CGRect frame={};
                 NSArray *members=CFBridgingRelease(a.windowSpaces(cid,0x7,(__bridge CFArrayRef)@[@(wid)]));
@@ -9881,6 +10044,7 @@ extern "C" int air_spaces_prepare() {
             if(systemChrome(app.bundleIdentifier)
                 || verifiedCursorUIOverlay(info,wid,pid,phaseBCursorAX)
                 || verifiedCUAOverlay(info,wid,pid,cid)
+                || verifiedTextKitAgentSurface(info,wid,pid,cid)
                 || verifiedDetachedMenuStripSurface(info,wid,pid,cid,&finalMenuStrips))continue;
             NSArray *members=CFBridgingRelease(a.windowSpaces(cid,0x7,(__bridge CFArrayRef)@[@(wid)]));
             if(!members)return failPhaseB("A post-full-screen window's Space membership is unreadable");
@@ -10554,9 +10718,9 @@ extern "C" int air_spaces_activate() {
     if(from!=initialSpace && from!=slots[1] && from!=slots[2])
         return error("The user selected another Space during setup; recovery journal retained");
     lastSelectedSpace=slots[0];
-    if(!persist())return error(("Could not record Remote Space 1 before selection: "+journalIOError).c_str());
+    if(!persist())return error(("Could not record Remote Space 3 before selection: "+journalIOError).c_str());
     if(!switchSpace(slots[0],cid))
-        return error("macOS did not select Remote Space 1; recovery journal retained");
+        return error("macOS did not select Remote Space 3; recovery journal retained");
     if(from!=slots[0])switchVerified=true;
     NSArray *routeBaseline=CFBridgingRelease(CGWindowListCopyWindowInfo(
         kCGWindowListOptionAll,kCGNullWindowID));
@@ -10577,10 +10741,118 @@ extern "C" int air_spaces_activate() {
     for(NSRunningApplication *running in [NSWorkspace sharedWorkspace].runningApplications)
         if([running.bundleIdentifier isEqualToString:@"com.google.Chrome"])
             reusedRouteBaselineChromePIDs.insert(running.processIdentifier);
-    reusedCachedCount.store(3);reusedCachedSlot.store(1);
+    reusedCachedCount.store(3);
+    reusedCachedSlot.store(logicalSlotForNativeIndex(0,true));
     reusedCachedLoop.store(loopSupportedLocked() ? 1 : 0);
     nextReusedRouteScan=CFAbsoluteTimeGetCurrent();
     active=true;return 0;
+}
+extern "C" int air_spaces_reload() {
+    std::lock_guard<std::mutex> lock(mutex);
+    if(shuttingDown)return error("Remote Spaces host is shutting down");
+    if(!active || reusedSlots.size()!=3 || !wholeJournal.original.displays.empty())
+        return error("An active reusable three-Space session is required");
+    int cid=api().conn();
+    NSDictionary *display=builtInManaged(managed());
+    if(!cid || !ownedSlotsStillOrdered(display,cid))
+        return error("A reusable Remote Space changed identity; recovery journal retained");
+    CGRect content=builtInContentBounds();
+    if(CGRectIsNull(content) || content.size.width<100 || content.size.height<100)
+        return error("Built-in display content area unavailable");
+    uint64_t returnSpace=builtInCurrentSpace();
+    if(std::find(std::begin(slots),std::end(slots),returnSpace)==std::end(slots))
+        returnSpace=slots[0];
+
+    // First repair every already journaled window. This is idempotent and
+    // preserves its original display/frame for exact disconnect restoration.
+    std::string placementFailure;
+    if(!placeActivationWindows(cid,content,&placementFailure))
+        return error(("Reload Spaces could not repair a journaled window: "+placementFailure).c_str());
+    reusedRoutePending.clear();
+
+    // Then sweep all physical displays for windows that the initial pass or a
+    // later app launch left behind. Baseline windows are deliberately included.
+    for(unsigned pass=0;pass<4;pass++) {
+        NSArray *windows=CFBridgingRelease(CGWindowListCopyWindowInfo(
+            kCGWindowListOptionAll,kCGNullWindowID));
+        if(!windows || windows.count>10000)
+            return error("Reload Spaces cannot read the complete window inventory");
+        std::vector<SavedWindow> candidates;
+        for(NSDictionary *cg in windows) {
+            SavedWindow candidate={};
+            if(reusedRouteCandidate(cg,cid,candidate,true,true))
+                candidates.push_back(std::move(candidate));
+        }
+        if(candidates.empty())break;
+        for(SavedWindow &candidate:candidates) {
+            if(std::any_of(saved.begin(),saved.end(),[&](const SavedWindow &w) {
+                return w.id==candidate.id;
+            }))continue;
+            if(candidate.slot<0 || candidate.slot>2 || !slots[candidate.slot])
+                return error("Reload Spaces found a window with no physical-display mapping");
+            uint64_t target=slots[candidate.slot];
+            saved.push_back(candidate);
+            if(!persist()) {
+                saved.pop_back();
+                return error(("Reload Spaces could not journal a window before moving it: "+journalIOError).c_str());
+            }
+            SavedWindow &record=saved.back();
+            if(!sameProcess(record)
+                || !(processBirth(record.pid)==ProcessBirth{record.birthSeconds,record.birthMicroseconds})
+                || windowState(record)!=WindowState::Ready
+                || oneWindowSpace(record.id,cid)!=record.space
+                || !move(record.id,target,cid)
+                || oneWindowSpace(record.id,cid)!=target) {
+                return error("Reload Spaces could not move an exact window; recovery journal retained");
+            }
+            if(builtInCurrentSpace()!=target) {
+                uint64_t prior=lastSelectedSpace;lastSelectedSpace=target;
+                if(!persist()) {
+                    lastSelectedSpace=prior;
+                    return error(("Reload Spaces could not journal its destination Space: "+journalIOError).c_str());
+                }
+                if(!switchSpace(target,cid))
+                    return error("Reload Spaces could not select a destination Space; recovery journal retained");
+            }
+            CGRect frame=mappedFrame(record,content),observed={};
+            bool canPlace=!record.minimized || setWindowMinimizedState(record,false);
+            if(CGRectIsNull(frame) || !canPlace || !setFrame(record,frame)
+                || !restoreWindowMinimized(record)
+                || oneWindowSpace(record.id,cid)!=target
+                || !windowOnDisplay(record.id,cid,builtinUUID)
+                || !readCGFrame(record.id,record.pid,&observed)
+                || !nearFrame(frame,observed)) {
+                restoreWindowMinimized(record);
+                return error("Reload Spaces could not place an exact window on the built-in display; recovery journal retained");
+            }
+        }
+    }
+    if(!retainedOrdinaryStillOriginal(cid))
+        return error("A retained window changed while Spaces reloaded; recovery journal retained");
+    uint64_t prior=lastSelectedSpace;lastSelectedSpace=returnSpace;
+    if(!persist()) {
+        lastSelectedSpace=prior;
+        return error(("Reload Spaces repaired windows but could not journal the selected Space: "+journalIOError).c_str());
+    }
+    if(builtInCurrentSpace()!=returnSpace && !switchSpace(returnSpace,cid))
+        return error("Reload Spaces repaired windows but could not restore the selected Space");
+
+    NSArray *baseline=CFBridgingRelease(CGWindowListCopyWindowInfo(
+        kCGWindowListOptionAll,kCGNullWindowID));
+    if(!baseline || baseline.count>10000)
+        return error("Reload Spaces repaired windows but could not refresh its launch baseline");
+    reusedRouteBaseline.clear();reusedRouteBaselineChromePIDs.clear();
+    for(NSDictionary *cg in baseline) {
+        uint32_t wid=[number(cg[(id)kCGWindowNumber]) unsignedIntValue];
+        if(wid)reusedRouteBaseline.insert(wid);
+    }
+    for(NSRunningApplication *running in [NSWorkspace sharedWorkspace].runningApplications)
+        if([running.bundleIdentifier isEqualToString:@"com.google.Chrome"])
+            reusedRouteBaselineChromePIDs.insert(running.processIdentifier);
+    int physical=(int)(std::find(std::begin(slots),std::end(slots),returnSpace)-std::begin(slots));
+    reusedCachedSlot.store(logicalSlotForNativeIndex(physical,true));
+    reusedCachedCount.store(3);
+    return 0;
 }
 extern "C" int air_spaces_select(int slot) {
     std::lock_guard<std::mutex> lock(mutex);
@@ -10616,7 +10888,9 @@ extern "C" int air_spaces_select(int slot) {
     if(const char *blocked=migrationBlocker())
         return error((std::string("Remote Spaces unavailable: ")+blocked).c_str());
     if(!active || slot<1 || slot>3)return error("Spaces slot is not active");
-    uint64_t sid=slots[slot-1];int cid=api().conn();
+    int nativeSlot=nativeIndexForLogicalSlot(slot,!reusedSlots.empty());
+    if(nativeSlot<0)return error("Spaces slot mapping is invalid");
+    uint64_t sid=slots[nativeSlot];int cid=api().conn();
     NSDictionary *display=builtInManaged(managed());
     if(!ownedSlotsStillOrdered(display,cid))
         return error("A reusable Remote Space changed identity");
@@ -10756,16 +11030,20 @@ extern "C" int air_spaces_wrap_boundary(int startingSlot,int direction) {
         return error("The original built-in display is unavailable for Space looping");
     if(!ownedSlotsStillOrdered(display,api().conn()))
         return error("A reusable Remote Space changed identity");
+    bool reversed=!reusedSlots.empty();
+    int startingNative=nativeIndexForLogicalSlot(startingSlot,reversed);
+    int targetLogical=direction<0 ? 3 : 1;
+    int targetNative=nativeIndexForLogicalSlot(targetLogical,reversed);
     uint64_t current=[number(dictionary(display[@"Current Space"])[@"id64"]) unsignedLongLongValue];
-    if(current!=slots[startingSlot-1])return 0;
-    uint64_t target=direction<0 ? slots[2] : slots[0];
+    if(startingNative<0 || targetNative<0 || current!=slots[startingNative])return 0;
+    uint64_t target=slots[targetNative];
     uint64_t prior=lastSelectedSpace;
     lastSelectedSpace=target;
     if(!persist()) {
         lastSelectedSpace=prior;
         return error(("Cannot journal the wrapped Space: "+journalIOError).c_str());
     }
-    if(builtInCurrentSpace()!=slots[startingSlot-1]) {
+    if(builtInCurrentSpace()!=slots[startingNative]) {
         lastSelectedSpace=prior;
         if(!persist())return error(("Cannot restore the prior Space journal after a changed desktop: "+journalIOError).c_str());
         return 0;
@@ -10804,7 +11082,8 @@ extern "C" uint64_t air_spaces_slot_id(int slot) {
     }
     if(slot>3)return 0;
     if(!ownedSlotsStillOrdered(builtInManaged(managed()),api().conn()))return 0;
-    return slots[slot-1];
+    int nativeSlot=nativeIndexForLogicalSlot(slot,!reusedSlots.empty());
+    return nativeSlot<0 ? 0 : slots[nativeSlot];
 }
 extern "C" int air_spaces_current_slot() {
     std::unique_lock<std::mutex> lock(mutex,std::defer_lock);
@@ -10833,7 +11112,7 @@ extern "C" int air_spaces_current_slot() {
                 return 0;
             }
         }
-        int result=slot+1;
+        int result=logicalSlotForNativeIndex(slot,!reusedSlots.empty());
         if(!reusedSlots.empty()) {
             reusedCachedSlot.store(result);
             reusedCachedLoop.store(loopSupportedLocked() ? 1 : 0);

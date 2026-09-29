@@ -19,6 +19,26 @@ int main() { @autoreleasepool {
     assert(!absentFromCompleteWindowInventory(nil,@[],candidate));
     assert(!absentFromCompleteWindowInventory(other,nil,candidate));
     assert(!absentFromCompleteWindowInventory(other,@[],0));
+    assert(departedSnapshotSample(other,@[],candidate));
+    assert(!departedSnapshotSample(present,@[],candidate));
+    assert(!departedSnapshotSample(other,@[@(388)],candidate));
+    assert(!departedSnapshotSample(nil,@[],candidate));
+    assert(logicalSlotForNativeIndex(0,true)==3);
+    assert(logicalSlotForNativeIndex(1,true)==2);
+    assert(logicalSlotForNativeIndex(2,true)==1);
+    assert(nativeIndexForLogicalSlot(1,true)==2);
+    assert(nativeIndexForLogicalSlot(2,true)==1);
+    assert(nativeIndexForLogicalSlot(3,true)==0);
+    assert(logicalSlotForNativeIndex(0,false)==1);
+    TextKitAgentSurfaceEvidence textKit={true,true,true,true,true,true,true,
+        true,true,true,true,true,true,true};
+    assert(textKitAgentSurfaceDecision(textKit));
+    textKit.zeroMembership=false;
+    assert(!textKitAgentSurfaceDecision(textKit));
+    textKit.zeroMembership=true;textKit.zeroFrame=false;
+    assert(!textKitAgentSurfaceDecision(textKit));
+    textKit.zeroFrame=true;textKit.signedSystemProcess=false;
+    assert(!textKitAgentSurfaceDecision(textKit));
     char command[]="/bin/sleep",seconds[]="10";
     char *arguments[]={command,seconds,nullptr};
     pid_t child=0;

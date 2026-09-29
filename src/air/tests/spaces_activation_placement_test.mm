@@ -196,8 +196,10 @@ int main(int argc,char **argv) { @autoreleasepool {
     // must still return every window and the built-in selection exactly.
     seed();frameFailureWID=11;
     assert(!placeActivationWindows(7,content,&reason));
-    assert(reason.find("stage=frame wid=11 slot=2 target=202")!=std::string::npos);
-    assert((frameOrder==std::vector<uint32_t>{12,11}));restoreAndVerify();
+    // This fixture intentionally uses a synthetic process identity, so the
+    // native-size refusal fallback must fail closed before removing its journal.
+    assert(reason.find("stage=refusal_identity wid=11 slot=2 target=202")!=std::string::npos);
+    assert((frameOrder==std::vector<uint32_t>{12,11,11,11}));restoreAndVerify();
 
     seed();displayFailureWID=11;
     assert(!placeActivationWindows(7,content,&reason));

@@ -247,9 +247,10 @@ fn run_inner(vs: &VideoService) -> ResultType<()> {
     while vs.sp.ok() {
         if requested_spaces && crate::air::workspace::take_reconnect_request() {
             let retry = (|| -> ResultType<()> {
-                if let Some(session) = spaces.as_mut() {
-                    session.restore()?;
-                    spaces = None;
+                if let Some(session) = spaces.as_ref() {
+                    // Keep physical-display ownership visible while rescanning.
+                    // Restoring first destroys the evidence Reload Spaces needs.
+                    return session.reload();
                 }
                 match crate::air::workspace::Session::prepare() {
                     Ok(session) => match session.activate() {

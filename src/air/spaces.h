@@ -12,6 +12,9 @@ extern "C" {
 int air_spaces_recover(void);
 int air_spaces_prepare(void);
 int air_spaces_activate(void);
+// Reconcile missed windows against their current physical displays without
+// restoring or recreating an already active Remote Spaces session.
+int air_spaces_reload(void);
 int air_spaces_select(int slot);
 // Call after a verified Air-owned left-button window drag has ended at a screen
 // edge. The Host revalidates the exact journaled window and adjacent Space.

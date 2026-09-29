@@ -132,7 +132,7 @@ static void installPanel(void *host_view,AirSpaceChoose choose,AirSpaceLoop loop
  revealButton.hidden=!available;[remoteView addSubview:revealButton];
  reconnectButton=[NSButton buttonWithTitle:@"Reload Spaces" target:actions action:@selector(reconnectSpaces:)];
  reconnectButton.tag=101;reconnectButton.bezelStyle=NSBezelStyleRounded;
- reconnectButton.toolTip=@"Restore and rebuild Remote Spaces on the Pro";
+ reconnectButton.toolTip=@"Rescan every display and repair Remote Spaces on the Pro";
  [panel addSubview:reconnectButton];
  for(int i=0;i<9;i++){
   NSString *title=i<3?[NSString stringWithFormat:@"Space %d",i+1]:[NSString stringWithFormat:@"Full Screen %d",i-2];

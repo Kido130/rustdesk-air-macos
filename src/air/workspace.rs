@@ -64,6 +64,10 @@ impl Session {
         HOST_LAST_SWIPE.store(0, Ordering::SeqCst);
         Ok(())
     }
+    pub(crate) fn reload(&self) -> ResultType<()> {
+        native_result(unsafe { ffi::air_spaces_reload() })
+            .map_err(|error| anyhow!("Remote Spaces reload failed: {error}"))
+    }
     pub(crate) fn restore(&mut self) -> ResultType<()> {
         restore_checked()?;
         self.restore_on_drop = false;

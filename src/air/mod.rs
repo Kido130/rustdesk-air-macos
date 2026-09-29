@@ -104,6 +104,7 @@ pub(crate) mod ffi {
         pub fn air_spaces_diagnostics() -> *const c_char;
         pub fn air_spaces_prepare() -> i32;
         pub fn air_spaces_activate() -> i32;
+        pub fn air_spaces_reload() -> i32;
         pub fn air_spaces_restore() -> i32;
         pub fn air_spaces_shutdown() -> i32;
         pub fn air_spaces_select(slot: i32) -> i32;
